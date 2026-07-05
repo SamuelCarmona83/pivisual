@@ -135,7 +135,7 @@ body{
 .chat-body::-webkit-scrollbar-thumb{background:var(--hairline);border-radius:2px}
 
 .welcome{
-  padding:80px 20px;text-align:center;color:var(--muted);
+  padding:40px 20px;text-align:center;color:var(--muted);
   font-family:var(--font-display);
 }
 .welcome i{font-size:3.5rem;margin-bottom:16px;opacity:.3;display:block}
@@ -145,6 +145,32 @@ body{
   font-family:var(--font-mono); font-size:12px; background:var(--surface-card);
   padding:2px 6px; border-radius:4px; color:var(--muted);
 }
+
+/* Dashboard */
+.dashboard{max-width:900px;margin:0 auto;padding:var(--spacing-xl) 0}
+.dash-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--spacing-md);margin-bottom:var(--spacing-xl)}
+.dash-stat{
+  background:var(--surface-card); border-radius:var(--rounded-lg); padding:var(--spacing-lg);
+  text-align:center; border:1px solid var(--hairline);
+}
+.dash-stat .ds-value{font-family:var(--font-display);font-size:28px;font-weight:400;letter-spacing:-0.3px;color:var(--ink);margin-bottom:4px}
+.dash-stat .ds-label{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-family:var(--font-body);font-weight:500}
+.dash-stat .ds-sub{font-size:12px;color:var(--muted-soft);margin-top:2px;font-family:var(--font-body)}
+
+.dash-recent h3{font-family:var(--font-display);font-size:20px;font-weight:400;letter-spacing:-0.2px;color:var(--ink);margin-bottom:var(--spacing-md)}
+.dash-recent-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:var(--spacing-sm)}
+.dash-session-card{
+  background:var(--canvas); border:1px solid var(--hairline); border-radius:var(--rounded-md);
+  padding:var(--spacing-sm) var(--spacing-md); cursor:pointer;
+  transition:border-color .15s,background .15s; text-align:left;
+  overflow:hidden; min-width:0;
+}
+.dash-session-card:hover{border-color:var(--primary);background:var(--surface-card)}
+.dash-session-card .dsc-project{font-size:11px;color:var(--muted-soft);margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dash-session-card .dsc-title{font-size:13px;font-weight:500;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dash-session-card .dsc-meta{font-size:11px;color:var(--muted);margin-top:4px;display:flex;gap:var(--spacing-sm);overflow:hidden}
+
+@media(max-width:700px){.dash-stats{grid-template-columns:repeat(2,1fr)}}
 
 /* ═══ MESSAGE BUBBLES ═══ */
 .msg-row{display:flex;gap:var(--spacing-sm);max-width:760px}
@@ -212,9 +238,19 @@ body{
   font-size:13px; color:var(--muted); padding:8px 10px; margin-top:4px;
   background:var(--surface-dark-soft); border-radius:var(--rounded-sm); white-space:pre-wrap;
   max-height:260px; overflow-y:auto; font-family:var(--font-mono); line-height:1.6;
-  color:var(--on-dark-soft);
+  color:var(--on-dark-soft); tab-size:4;
 }
 .msg-row.user .tool-block .tool-result{background:rgba(0,0,0,.15);color:rgba(255,255,255,.7)}
+
+/* Diff lines inside tool results */
+.tool-result .diff-add{color:#7eb77f;display:block}
+.tool-result .diff-del{color:#e06c75;display:block}
+.tool-result .diff-hunk{color:#61afef;display:block;font-weight:500}
+.tool-result .diff-meta{color:#c678dd;display:block;font-weight:500}
+.msg-row.user .tool-result .diff-add{color:#a3d9a5}
+.msg-row.user .tool-result .diff-del{color:#f5a0a5}
+.msg-row.user .tool-result .diff-hunk{color:#96cbfa}
+.msg-row.user .tool-result .diff-meta{color:#d9a8ef}
 
 /* System events */
 .sys-event{
@@ -253,11 +289,7 @@ body{
     <span class="ch-cost" id="ch-cost"></span>
   </div>
   <div class="chat-body" id="chat-body">
-    <div class="welcome">
-      <i class="ph ph-chats-circle"></i>
-      <h2>Pi Session Viewer</h2>
-      <p>Seleccioná una sesión del sidebar para verla como chat. Usá <code>pi --session &lt;id&gt;</code> para retomarla.</p>
-    </div>
+    <div class="dashboard" id="dashboard"><div style="text-align:center;padding:60px;color:var(--muted)">Cargando&hellip;</div></div>
   </div>
 </main>
 
@@ -274,6 +306,30 @@ async function load(){
   const projects=[...new Set(sessions.map(s=>s.project))].sort();
   projects.forEach(p=>{const o=document.createElement('option');o.value=p;o.textContent=p;sel.appendChild(o)});
   renderList();
+}
+
+function shortProject(path){
+  var p=path.replace(/^~\/[^\/]+\/Documents\/Repositories\//,'').replace(/^~\/[^\/]+\//,'~/');
+  return p||path;
+}
+
+// ponytail: single-pass render with inline diff detection + ANSI strip
+function renderToolResult(text){
+  if(!text)return text;
+  // Strip ANSI escape codes (terminal color sequences)
+  text=text.replace(/\x1b\[[0-9;]*[a-zA-Z]/g,'');
+  // Strip carriage returns (progress bars, spinners)
+  text=text.replace(/\r[^\n]*\r/g,'\n').replace(/\r/g,'');
+  // Detect diff: starts with diff --git or contains @@ hunk headers
+  var isDiff=/^diff --git/m.test(text)||/^@@ /m.test(text);
+  if(!isDiff)return esc(text);
+  return text.split('\n').map(function(line){
+    if(/^diff --git/.test(line)||/^(index |--- |\+\+\+ )/.test(line)||/^(new|old|similarity|rename|copy|deleted) /.test(line)) return '<span class="diff-meta">'+esc(line)+'</span>';
+    if(/^@@/.test(line)) return '<span class="diff-hunk">'+esc(line)+'</span>';
+    if(/^\+/.test(line)) return '<span class="diff-add">'+esc(line)+'</span>';
+    if(/^-/.test(line)) return '<span class="diff-del">'+esc(line)+'</span>';
+    return esc(line);
+  }).join('\n');
 }
 
 function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
@@ -382,7 +438,7 @@ function renderChat(lines){
     try{var ee=JSON.parse(lines[i])}catch(_){continue;}
     if(ee.type==='message'&&ee.message&&ee.message.role==='toolResult'){
       var c=ee.message.content;
-      toolResults[ee.message.toolCallId]=Array.isArray(c)?c.map(function(x){return x.type==='text'?esc(x.text):'';}).join('\n'):esc(String(c||''));
+      toolResults[ee.message.toolCallId]=Array.isArray(c)?c.map(function(x){return x.type==='text'?x.text:'';}).join('\n'):String(c||'');
     }
   }
 
@@ -422,7 +478,7 @@ function renderChat(lines){
         var tc='';
         for(var k=0;k<toolCalls.length;k++){
           var tc2=toolCalls[k];
-          tc+='<details class="tool-block"><summary><i class="ph ph-wrench"></i> '+esc(tc2.name)+'</summary><div class="tool-result">'+(toolResults[tc2.id]||'⏳ esperando&hellip;')+'</div></details>';
+          tc+='<details class="tool-block"><summary><i class="ph ph-wrench"></i> '+esc(tc2.name)+'</summary><div class="tool-result">'+renderToolResult(toolResults[tc2.id]||'')+'</div></details>';
         }
         html+='<div class="msg-row assistant"><div class="avatar">P</div><div><div class="bubble">'+(txt.replace(/<p><\/p>/g,'')||'')+tc+'<div class="msg-footer">'+tkStr+' '+costStr+'</div></div></div></div>';
       }
@@ -437,7 +493,33 @@ function toggleSidebar(){
 }
 document.addEventListener('keydown',function(e){if((e.ctrlKey||e.metaKey)&&e.key==='b'){e.preventDefault();toggleSidebar();}});
 
-load();
+function renderDashboard(){
+  if(!sessions.length)return;
+  var totalTokens=0,totalCost=0;
+  var modelCounts={};
+  for(var i=0;i<sessions.length;i++){
+    totalTokens+=sessions[i].total_tokens||0;
+    totalCost+=sessions[i].total_cost||0;
+    var mk=sessions[i].provider+'/'+sessions[i].model;
+    modelCounts[mk]=(modelCounts[mk]||0)+1;
+  }
+  var topModel=Object.entries(modelCounts).sort(function(a,b){return b[1]-a[1]})[0]||['—'];
+  var recent=sessions.slice().sort(function(a,b){return new Date(b.timestamp)-new Date(a.timestamp)}).slice(0,6);
+
+  document.getElementById('dashboard').innerHTML=
+    '<div class="dashboard">'+
+    '<div class="dash-stats">'+
+      '<div class="dash-stat"><div class="ds-value">'+sessions.length+'</div><div class="ds-label">Sesiones totales</div><div class="ds-sub">'+Object.keys(sessions.reduce(function(a,s){a[s.project]=1;return a},{})).length+' proyectos</div></div>'+
+      '<div class="dash-stat"><div class="ds-value">'+(totalTokens/1000).toFixed(1)+'k</div><div class="ds-label">Tokens totales</div><div class="ds-sub">~'+Math.round(totalTokens/(sessions.length||1)).toLocaleString()+' / sesión</div></div>'+
+      '<div class="dash-stat"><div class="ds-value">$'+totalCost.toFixed(2)+'</div><div class="ds-label">Costo total</div><div class="ds-sub">API usage acumulado</div></div>'+
+      '<div class="dash-stat"><div class="ds-value" style="font-size:22px;font-family:var(--font-body);font-weight:500">'+esc(topModel[0])+'</div><div class="ds-label">Modelo más usado</div><div class="ds-sub">'+topModel[1]+' sesiones</div></div>'+
+    '</div>'+
+    '<div class="dash-recent"><h3>Sesiones recientes</h3><div class="dash-recent-grid">'+
+      recent.map(function(s){return '<div class="dash-session-card" onclick="selectSession(\''+s.file.replace(/'/g,"\\'")+'\')"><div class="dsc-project">📁 '+esc(shortProject(s.project))+'</div><div class="dsc-title">'+(s.name?esc(s.name):esc(s.first_user)||'(vacío)')+'</div><div class="dsc-meta"><span>'+formatDate(s.timestamp)+'</span><span>'+s.provider+'/'+s.model+'</span></div></div>';}).join('')+
+    '</div></div></div>';
+}
+
+load().then(renderDashboard);
 </script>
 </body>
 </html>
