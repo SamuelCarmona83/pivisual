@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pi Sessions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..500&family=JetBrains+Mono@400&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/@phosphor-icons/web@2.1.1"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+/* ═══ Anthropic Claude Design System ═══ */
+:root{
+  --canvas:#faf9f5; --surface-card:#efe9de; --surface-dark:#181715;
+  --surface-dark-soft:#1f1e1b; --surface-dark-elevated:#252320;
+  --primary:#cc785c; --primary-active:#a9583e;
+  --ink:#141413; --body:#3d3d3a; --muted:#6c6a64; --muted-soft:#8e8b82;
+  --hairline:#e6dfd8; --hairline-soft:#ebe6df;
+  --on-primary:#ffffff; --on-dark:#faf9f5; --on-dark-soft:#a09d96;
+  --success:#5db872; --accent-teal:#5db8a6;
+  --rounded-sm:6px; --rounded-md:8px; --rounded-lg:12px; --rounded-xl:16px; --rounded-pill:9999px;
+  --spacing-xs:8px; --spacing-sm:12px; --spacing-md:16px; --spacing-lg:24px; --spacing-xl:32px;
+  --sidebar-w:300px; --header-h:52px;
+  --font-display:'Tiempos Headline',Garamond,'Times New Roman',serif;
+  --font-body:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  --font-mono:'JetBrains Mono',ui-monospace,monospace;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:var(--font-body); font-size:14px; font-weight:400; line-height:1.55;
+  background:var(--canvas); color:var(--body); height:100vh; display:flex; overflow:hidden;
+}
+
+/* ═══ SIDEBAR ═══ */
+.sidebar{
+  width:var(--sidebar-w); min-width:var(--sidebar-w);
+  background:var(--canvas); border-right:1px solid var(--hairline);
+  display:flex; flex-direction:column; z-index:20;
+  transition:margin-left .25s cubic-bezier(.4,0,.2,1);
+}
+.sidebar.collapsed{margin-left:calc(var(--sidebar-w) * -1)}
+.sidebar-header{
+  height:var(--header-h); padding:0 var(--spacing-md);
+  border-bottom:1px solid var(--hairline); display:flex; align-items:center; gap:var(--spacing-sm);
+  flex-shrink:0;
+}
+.sidebar-header .logo{
+  font-family:var(--font-display); font-size:20px; font-weight:400;
+  letter-spacing:-0.3px; color:var(--ink); flex:1;
+}
+.sidebar-header button{
+  background:none; border:none; color:var(--muted); cursor:pointer;
+  width:32px; height:32px; border-radius:var(--rounded-sm);
+  display:flex; align-items:center; justify-content:center; font-size:1rem;
+  transition:color .15s,background .15s;
+}
+.sidebar-header button:hover{color:var(--ink); background:var(--surface-card)}
+.sidebar-filters{
+  padding:var(--spacing-sm) var(--spacing-md);
+  display:flex; flex-direction:column; gap:var(--spacing-xs);
+  border-bottom:1px solid var(--hairline); flex-shrink:0;
+}
+.sidebar-filters input,.sidebar-filters select{
+  width:100%; padding:8px 10px; background:var(--canvas); border:1px solid var(--hairline);
+  border-radius:var(--rounded-md); color:var(--ink); font-size:13px; outline:none;
+  font-family:var(--font-body); transition:border-color .15s;
+}
+.sidebar-filters input:focus,.sidebar-filters select:focus{border-color:var(--primary)}
+.sidebar-list{flex:1;overflow-y:auto;padding:var(--spacing-xs) 0}
+.sidebar-list::-webkit-scrollbar{width:4px}
+.sidebar-list::-webkit-scrollbar-thumb{background:var(--hairline);border-radius:2px}
+
+/* Groups */
+.session-group{padding:0 var(--spacing-md)}
+.session-group-label{
+  font-size:11px; font-weight:500; letter-spacing:1px; text-transform:uppercase;
+  color:var(--muted-soft); padding:var(--spacing-sm) 0 var(--spacing-xs); position:sticky; top:0;
+  background:var(--canvas); z-index:1;
+}
+
+/* Session items */
+.session-item{
+  padding:var(--spacing-xs) var(--spacing-sm); cursor:pointer; border-radius:var(--rounded-sm);
+  transition:background .12s; display:flex; align-items:flex-start; gap:var(--spacing-xs);
+  position:relative; margin-bottom:2px;
+}
+.session-item:hover{background:var(--surface-card)}
+.session-item.active{background:rgba(204,120,92,.1);color:var(--ink)}
+.session-item .si-pin{
+  flex-shrink:0; padding-top:1px; font-size:.75rem; color:var(--muted-soft);
+  cursor:pointer; opacity:0; transition:opacity .15s,color .15s; background:none;border:none;
+}
+.session-item:hover .si-pin,.session-item .si-pin.pinned{opacity:1}
+.session-item .si-pin.pinned{color:var(--primary)}
+.session-item .si-body{flex:1;min-width:0}
+.session-item .si-name{
+  font-size:13px; font-weight:500; color:var(--ink);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; line-height:1.4;
+}
+.session-item .si-meta{
+  display:flex; gap:var(--spacing-sm); font-size:11px; color:var(--muted);
+  margin-top:1px; align-items:center;
+}
+.session-item .si-meta span{display:inline-flex;align-items:center;gap:3px}
+
+/* ═══ MAIN ═══ */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.chat-header{
+  height:var(--header-h); padding:0 var(--spacing-lg); border-bottom:1px solid var(--hairline);
+  display:flex; align-items:center; gap:var(--spacing-sm);
+  background:var(--canvas); flex-shrink:0;
+}
+.chat-header .ch-toggle{
+  background:none; border:none; color:var(--muted); cursor:pointer;
+  width:32px; height:32px; border-radius:var(--rounded-sm);
+  display:flex; align-items:center; justify-content:center; font-size:1.1rem;
+  flex-shrink:0; transition:color .15s,background .15s;
+}
+.chat-header .ch-toggle:hover{color:var(--ink);background:var(--surface-card)}
+.chat-header .ch-title{
+  font-family:var(--font-display); font-size:18px; font-weight:400; letter-spacing:-0.2px;
+  color:var(--ink); flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.chat-header .ch-id{
+  font-size:12px; color:var(--muted-soft); font-family:var(--font-mono);
+  user-select:all; cursor:text;
+}
+.chat-header .ch-cost{font-size:12px;color:var(--muted);white-space:nowrap}
+
+/* ═══ CHAT BODY ═══ */
+.chat-body{flex:1;overflow-y:auto;padding:var(--spacing-xl) var(--spacing-lg);display:flex;flex-direction:column;gap:var(--spacing-md)}
+.chat-body::-webkit-scrollbar{width:4px}
+.chat-body::-webkit-scrollbar-thumb{background:var(--hairline);border-radius:2px}
+
+.welcome{
+  padding:80px 20px;text-align:center;color:var(--muted);
+  font-family:var(--font-display);
+}
+.welcome i{font-size:3.5rem;margin-bottom:16px;opacity:.3;display:block}
+.welcome h2{font-size:28px;font-weight:400;letter-spacing:-0.3px;margin-bottom:8px;color:var(--ink)}
+.welcome p{font-size:14px;font-family:var(--font-body);max-width:380px;margin:0 auto;line-height:1.6}
+.welcome code{
+  font-family:var(--font-mono); font-size:12px; background:var(--surface-card);
+  padding:2px 6px; border-radius:4px; color:var(--muted);
+}
+
+/* ═══ MESSAGE BUBBLES ═══ */
+.msg-row{display:flex;gap:var(--spacing-sm);max-width:760px}
+.msg-row.user{flex-direction:row-reverse;margin-left:auto}
+.avatar{
+  width:28px;height:28px;border-radius:var(--rounded-sm);display:flex;align-items:center;
+  justify-content:center;font-size:11px;flex-shrink:0;font-weight:500;
+}
+.msg-row.user .avatar{background:var(--primary);color:var(--on-primary)}
+.msg-row.assistant .avatar{display:none}
+.bubble{background:var(--surface-card);border-radius:var(--rounded-lg);padding:var(--spacing-sm) var(--spacing-md);font-size:14px;line-height:1.6;max-width:100%;min-width:0;word-break:break-word}
+.msg-row.user .bubble{background:var(--primary);color:var(--on-primary);border-radius:var(--rounded-lg) var(--rounded-lg) 4px var(--rounded-lg)}
+.bubble h1,.bubble h2,.bubble h3{font-family:var(--font-display);font-weight:400;letter-spacing:-0.2px;color:var(--ink);margin:16px 0 8px}
+.msg-row.user .bubble h1,.msg-row.user .bubble h2,.msg-row.user .bubble h3{color:var(--on-primary)}
+.bubble h1{font-size:22px}.bubble h2{font-size:18px}.bubble h3{font-size:16px}
+.bubble ul,.bubble ol{padding-left:20px;margin:8px 0}
+.bubble li{margin:2px 0}
+.bubble blockquote{border-left:3px solid var(--primary);margin:8px 0;padding:4px 0 4px 12px;color:var(--muted);font-style:italic}
+.msg-row.user .bubble blockquote{border-left-color:rgba(255,255,255,.4);color:rgba(255,255,255,.8)}
+.bubble a{color:var(--primary)}
+.msg-row.user .bubble a{color:var(--on-primary)}
+.bubble table{border-collapse:collapse;width:100%;margin:8px 0;font-size:13px}
+.bubble th,.bubble td{border:1px solid var(--hairline);padding:6px 10px;text-align:left}
+.msg-row.user .bubble th,.msg-row.user .bubble td{border-color:rgba(255,255,255,.15)}
+.bubble th{background:var(--surface-card);font-weight:500}
+.msg-row.user .bubble th{background:rgba(255,255,255,.1)}
+.bubble hr{border:none;border-top:1px solid var(--hairline);margin:12px 0}
+.bubble img{max-width:100%;border-radius:var(--rounded-sm)}
+.bubble p{margin:0 0 8px}
+.bubble p:last-child,.bubble p:only-child{margin-bottom:0}
+.bubble code{font-family:var(--font-mono);font-size:13px;background:rgba(255,255,255,.15);padding:2px 5px;border-radius:4px}
+.msg-row.user .bubble code{background:rgba(255,255,255,.15)}
+.msg-row:not(.user) .bubble code{background:rgba(0,0,0,.06);color:var(--primary-active)}
+.bubble pre{
+  font-family:var(--font-mono);font-size:13px;overflow-x:auto;margin:var(--spacing-xs) 0;
+  white-space:pre; padding:var(--spacing-sm); border-radius:var(--rounded-sm);
+  background:var(--surface-dark-soft); color:var(--on-dark-soft);
+  line-height:1.6;
+}
+.msg-row.user .bubble pre{background:rgba(0,0,0,.2);color:rgba(255,255,255,.85)}
+.msg-row:not(.user) .bubble pre{background:var(--surface-dark-soft);color:var(--on-dark-soft)}
+
+/* Thinking & Tool blocks */
+.think-block{margin:var(--spacing-xs) 0}
+.think-block summary{
+  font-size:12px; color:var(--muted); cursor:pointer; padding:6px 10px;
+  background:rgba(0,0,0,.04); border-radius:var(--rounded-sm); display:inline-flex;
+  align-items:center; gap:6px; user-select:none;
+}
+.msg-row.user .think-block summary{background:rgba(255,255,255,.1);color:rgba(255,255,255,.7)}
+.think-block .think-content{
+  font-size:13px; color:var(--muted); padding:8px 10px; white-space:pre-wrap;
+  line-height:1.5; font-style:italic; margin-top:4px;
+}
+.msg-row.user .think-block .think-content{color:rgba(255,255,255,.75)}
+
+.tool-block{margin:var(--spacing-xs) 0}
+.tool-block summary{
+  font-size:12px; cursor:pointer; padding:6px 10px; background:rgba(204,120,92,.08);
+  border-radius:var(--rounded-sm); display:inline-flex;align-items:center;gap:6px;
+  user-select:none; color:var(--primary); font-weight:500;
+}
+.msg-row.user .tool-block summary{background:rgba(255,255,255,.1);color:rgba(255,255,255,.85)}
+.tool-block .tool-result{
+  font-size:13px; color:var(--muted); padding:8px 10px; margin-top:4px;
+  background:var(--surface-dark-soft); border-radius:var(--rounded-sm); white-space:pre-wrap;
+  max-height:260px; overflow-y:auto; font-family:var(--font-mono); line-height:1.6;
+  color:var(--on-dark-soft);
+}
+.msg-row.user .tool-block .tool-result{background:rgba(0,0,0,.15);color:rgba(255,255,255,.7)}
+
+/* System events */
+.sys-event{
+  text-align:center; font-size:11px; color:var(--muted-soft); padding:4px 0;
+  display:flex; align-items:center; justify-content:center; gap:var(--spacing-sm);
+  font-weight:500; letter-spacing:0.5px; text-transform:uppercase;
+}
+.sys-event::before,.sys-event::after{content:'';flex:1;height:1px;background:var(--hairline);max-width:60px}
+
+.msg-footer{font-size:11px;color:var(--muted-soft);margin-top:2px;display:flex;gap:var(--spacing-sm)}
+.msg-row.user .msg-footer{justify-content:flex-end;color:rgba(255,255,255,.6)}
+</style>
+</head>
+<body>
+
+<!-- ═══ SIDEBAR ═══ -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <span class="logo">Pi Sessions</span>
+    <button onclick="toggleSidebar()" title="Cerrar"><i class="ph ph-sidebar-simple"></i></button>
+    <button onclick="location.reload()" title="Refrescar"><i class="ph ph-arrows-clockwise"></i></button>
+  </div>
+  <div class="sidebar-filters">
+    <input type="text" id="search" placeholder="Buscar sesiones&hellip;">
+    <select id="project-filter"><option value="">Todos los proyectos</option></select>
+  </div>
+  <div class="sidebar-list" id="session-list"></div>
+</aside>
+
+<!-- ═══ MAIN ═══ -->
+<main class="main">
+  <div class="chat-header">
+    <button class="ch-toggle" onclick="toggleSidebar()" title="Sidebar"><i class="ph ph-list"></i></button>
+    <span class="ch-title" id="ch-title">Seleccioná una sesión</span>
+    <span class="ch-id" id="ch-id"></span>
+    <span class="ch-cost" id="ch-cost"></span>
+  </div>
+  <div class="chat-body" id="chat-body">
+    <div class="welcome">
+      <i class="ph ph-chats-circle"></i>
+      <h2>Pi Session Viewer</h2>
+      <p>Seleccioná una sesión del sidebar para verla como chat. Usá <code>pi --session &lt;id&gt;</code> para retomarla.</p>
+    </div>
+  </div>
+</main>
+
+<script>
+let sessions=[],activeFile=null;
+const PIN_KEY='pi-sessions-pinned';
+
+function getPins(){try{return JSON.parse(localStorage.getItem(PIN_KEY)||'[]')}catch(_){return[]}}
+function savePins(pins){localStorage.setItem(PIN_KEY,JSON.stringify(pins))}
+
+async function load(){
+  try{const r=await fetch('/api/sessions');sessions=await r.json()}catch(e){return}
+  const sel=document.getElementById('project-filter');
+  const projects=[...new Set(sessions.map(s=>s.project))].sort();
+  projects.forEach(p=>{const o=document.createElement('option');o.value=p;o.textContent=p;sel.appendChild(o)});
+  renderList();
+}
+
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function formatDate(ts){const d=new Date(ts);return d.toLocaleDateString('es-ES',{day:'2-digit',month:'short'})+' '+d.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});}
+
+function timeGroup(ts){
+  const d=new Date(ts),now=new Date();
+  const today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  const yesterday=new Date(today-86400000);
+  const weekAgo=new Date(today-7*86400000);
+  if(d>=today)return 'Hoy';
+  if(d>=yesterday)return 'Ayer';
+  if(d>=weekAgo)return 'Esta semana';
+  return 'Anterior';
+}
+
+function renderList(){
+  const q=(document.getElementById('search').value||'').toLowerCase();
+  const proj=document.getElementById('project-filter').value;
+  const pins=getPins();
+  const list=document.getElementById('session-list');
+  const filtered=sessions.filter(s=>{
+    if(proj&&s.project!==proj)return false;
+    if(q&&!(s.first_user||'').toLowerCase().includes(q)&&!(s.name||'').toLowerCase().includes(q))return false;
+    return true;
+  });
+
+  // Sort: pinned first, then by timestamp desc
+  filtered.sort((a,b)=>{
+    const pa=pins.includes(a.id)?1:0, pb=pins.includes(b.id)?1:0;
+    if(pa!==pb)return pb-pa;
+    return new Date(b.timestamp)-new Date(a.timestamp);
+  });
+
+  if(!filtered.length){list.innerHTML='<div style="padding:var(--spacing-xl);text-align:center;color:var(--muted);font-size:13px">No hay sesiones</div>';return;}
+
+  // Group
+  const groups={};
+  for(const s of filtered){
+    let g=s.id&&pins.includes(s.id)?'📌 Fijadas':timeGroup(s.timestamp);
+    (groups[g]||=[]).push(s);
+  }
+  const order=['📌 Fijadas','Hoy','Ayer','Esta semana','Anterior'];
+
+  let html='';
+  for(const g of order){
+    if(!groups[g]||!groups[g].length)continue;
+    html+='<div class="session-group"><div class="session-group-label">'+g+'</div>';
+    for(const s of groups[g]){
+      const pinned=s.id&&pins.includes(s.id);
+      html+=`
+        <div class="session-item${s.file===activeFile?' active':''}" onclick="selectSession('${s.file.replace(/'/g,"\\'")}')">
+          <button class="si-pin${pinned?' pinned':''}" onclick="event.stopPropagation();togglePin('${s.id}')" title="${pinned?'Quitar pin':'Fijar'}"><i class="ph${pinned?'-fill':''} ph-star"></i></button>
+          <div class="si-body">
+            <div class="si-name">${s.name?esc(s.name):esc(s.first_user)||'(vacío)'}</div>
+            <div class="si-meta">
+              <span>${formatDate(s.timestamp)}</span>
+              <span style="font-family:var(--font-mono);font-size:10px;opacity:.6">${s.id.slice(0,8)}</span>
+              <span>${s.provider}/${s.model}</span>
+            </div>
+          </div>
+        </div>`;
+    }
+    html+='</div>';
+  }
+  list.innerHTML=html;
+}
+
+function togglePin(id){
+  const pins=getPins();
+  const i=pins.indexOf(id);
+  if(i>=0)pins.splice(i,1);else pins.push(id);
+  savePins(pins);renderList();
+}
+
+document.getElementById('search').addEventListener('input',renderList);
+document.getElementById('project-filter').addEventListener('change',renderList);
+
+/* ── SESSION DETAIL ── */
+async function selectSession(file){
+  activeFile=file;renderList();
+  const s=sessions.find(s=>s.file===file);
+  document.getElementById('ch-title').textContent=s?(s.name||s.first_user||'Sesión'):'';
+  document.getElementById('ch-title').title=s?(s.name||s.first_user||''):'';
+  document.getElementById('ch-id').textContent=s?s.id:'';
+  document.getElementById('ch-id').title='pi --session '+(s?s.id:'');
+  document.getElementById('ch-cost').textContent=s&&s.total_cost>0?('$'+s.total_cost.toFixed(4)+'; '+s.total_tokens.toLocaleString()+' tk'):'';
+
+  const body=document.getElementById('chat-body');
+  body.innerHTML='<div style="text-align:center;padding:60px;color:var(--muted)"><i class="ph ph-spinner ph-spin" style="font-size:1.8rem;display:block;margin-bottom:12px"></i><span style="font-family:var(--font-display);font-size:18px">Cargando&hellip;</span></div>';
+
+  try{
+    const r=await fetch('/api/session?file='+encodeURIComponent(file));
+    const lines=await r.json();
+    renderChat(lines);
+  }catch(e){body.innerHTML='<div class="welcome"><h2>Error</h2><p>No se pudo cargar la sesión</p></div>';}
+}
+
+function renderChat(lines){
+  var body=document.getElementById('chat-body'),html='';
+
+  // Pre-scan tool results
+  var toolResults={};
+  for(var i=0;i<lines.length;i++){
+    try{var ee=JSON.parse(lines[i])}catch(_){continue;}
+    if(ee.type==='message'&&ee.message&&ee.message.role==='toolResult'){
+      var c=ee.message.content;
+      toolResults[ee.message.toolCallId]=Array.isArray(c)?c.map(function(x){return x.type==='text'?esc(x.text):'';}).join('\n'):esc(String(c||''));
+    }
+  }
+
+  for(var i=0;i<lines.length;i++){
+    try{var e=JSON.parse(lines[i])}catch(_){continue;}
+    if(e.type==='session')continue;
+
+    if(e.type==='model_change'){
+      html+='<div class="sys-event"><i class="ph ph-cpu"></i> '+esc(e.provider)+' / '+esc(e.modelId)+'</div>';
+    }else if(e.type==='thinking_level_change'){
+      html+='<div class="sys-event"><i class="ph ph-brain"></i> thinking: '+esc(e.thinkingLevel)+'</div>';
+    }else if(e.type==='compaction'){
+      html+='<div class="sys-event"><i class="ph ph-scissors"></i> compactado ('+e.tokensBefore+' tokens)</div>';
+    }else if(e.type==='message'){
+      var msg=e.message||{},role=msg.role;
+      var txt='',toolCalls=[];
+      var content=msg.content;
+      if(Array.isArray(content)){
+        for(var j=0;j<content.length;j++){
+          var c2=content[j];
+          if(c2.type==='text') txt+=c2.text;
+          else if(c2.type==='thinking') txt+='<details class="think-block"><summary><i class="ph ph-brain"></i> Pensando&hellip;</summary><div class="think-content">'+esc(c2.thinking||'')+'</div></details>';
+          else if(c2.type==='toolCall') toolCalls.push(c2);
+        }
+      }else if(typeof content==='string') txt=content;
+      else if(!content) txt='';
+
+      var usage=msg.usage||{};
+      var costStr=usage.cost&&usage.cost.total?'<span>$'+usage.cost.total.toFixed(6)+'</span>':'';
+      var tkStr=usage.input?'<span>'+usage.input+'+'+(usage.output||0)+' tk</span>':'';
+
+      txt=marked.parse(txt);
+
+      if(role==='user'){
+        html+='<div class="msg-row user"><div class="avatar">U</div><div><div class="bubble">'+(txt||'<em>(vacío)</em>')+'</div><div class="msg-footer">'+tkStr+' '+costStr+'</div></div></div>';
+      }else if(role==='assistant'){
+        var tc='';
+        for(var k=0;k<toolCalls.length;k++){
+          var tc2=toolCalls[k];
+          tc+='<details class="tool-block"><summary><i class="ph ph-wrench"></i> '+esc(tc2.name)+'</summary><div class="tool-result">'+(toolResults[tc2.id]||'⏳ esperando&hellip;')+'</div></details>';
+        }
+        html+='<div class="msg-row assistant"><div class="avatar">P</div><div><div class="bubble">'+(txt.replace(/<p><\/p>/g,'')||'')+tc+'<div class="msg-footer">'+tkStr+' '+costStr+'</div></div></div></div>';
+      }
+    }
+  }
+  body.innerHTML=html||'<div class="welcome"><h2>Sesión vacía</h2></div>';
+  body.scrollTop=body.scrollHeight;
+}
+
+function toggleSidebar(){
+  document.getElementById('sidebar').classList.toggle('collapsed');
+}
+document.addEventListener('keydown',function(e){if((e.ctrlKey||e.metaKey)&&e.key==='b'){e.preventDefault();toggleSidebar();}});
+
+load();
+</script>
+</body>
+</html>
