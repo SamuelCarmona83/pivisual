@@ -43,6 +43,9 @@ const recentSessions = computed(() =>
 
 <template>
   <div class="dashboard">
+    <h2 class="dash-title">Pi Visual</h2>
+    <p class="dash-subtitle">Session viewer for Pi Coding Agent</p>
+
     <div class="dash-stats">
       <div class="dash-stat">
         <div class="ds-value">{{ sessions.length }}</div>
@@ -90,8 +93,27 @@ const recentSessions = computed(() =>
 <style scoped>
 .dashboard {
   max-width: 900px;
-  margin: 0 auto;
-  padding: 32px 0;
+  margin: auto;
+  padding: 48px 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 100%;
+}
+.dash-title {
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 400;
+  letter-spacing: -0.3px;
+  color: var(--ink);
+  text-align: center;
+  margin-bottom: 4px;
+}
+.dash-subtitle {
+  font-size: 14px;
+  color: var(--muted);
+  text-align: center;
+  margin-bottom: 32px;
 }
 .dash-stats {
   display: grid;

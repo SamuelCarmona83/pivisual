@@ -1,11 +1,16 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, watch, nextTick, ref } from 'vue'
 import { PhChats } from '@phosphor-icons/vue'
 import { useSessions } from '../composables/useSessions'
 import ChatMessage from './ChatMessage.vue'
 import type { SessionEntry, ChatMessage as ChatMsg } from '../types'
 
 const { selectedSession, sessionLines } = useSessions()
+
+function copySessionId() {
+  if (!selectedSession.value) return
+  navigator.clipboard.writeText('pi --session ' + selectedSession.value.id).catch(() => {})
+}
 
 interface RenderedMessage {
   role: string
@@ -90,6 +95,11 @@ const messages = computed<RenderedMessage[]>(() => {
   }
   return result
 })
+
+const chatBody = ref<HTMLElement | null>(null)
+watch(messages, () => nextTick(() => {
+  if (chatBody.value) chatBody.value.scrollTop = chatBody.value.scrollHeight
+}))
 </script>
 
 <template>
@@ -99,8 +109,8 @@ const messages = computed<RenderedMessage[]>(() => {
       <span class="ch-title" :title="selectedSession?.name || selectedSession?.first_user || 'Seleccioná una sesión'">
         {{ selectedSession?.name || selectedSession?.first_user || 'Seleccioná una sesión' }}
       </span>
-      <span v-if="selectedSession" class="ch-id" :title="selectedSession.id">
-        {{ selectedSession.id }}
+      <span v-if="selectedSession" class="ch-id" :title="'pi --session ' + selectedSession.id" @click="copySessionId">
+        pi --session {{ selectedSession.id }}
       </span>
     </div>
 
@@ -111,7 +121,7 @@ const messages = computed<RenderedMessage[]>(() => {
     </div>
 
     <!-- Messages -->
-    <div v-else class="chat-messages">
+    <div v-else class="chat-messages" ref="chatBody">
       <template v-for="msg in messages" :key="msg.id">
         <ChatMessage
           v-if="msg.role !== 'system'"
@@ -156,6 +166,9 @@ const messages = computed<RenderedMessage[]>(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  margin-left: 32px;
+  user-select:all; 
+  cursor:text;
 }
 .ch-id {
   font-size: 12px;
@@ -163,7 +176,10 @@ const messages = computed<RenderedMessage[]>(() => {
   font-family: var(--font-mono);
   user-select: all;
   cursor: pointer;
+  transition: color .15s;
+  white-space: nowrap;
 }
+.ch-id:hover { color: var(--primary); }
 .chat-messages {
   flex: 1;
   overflow-y: auto;

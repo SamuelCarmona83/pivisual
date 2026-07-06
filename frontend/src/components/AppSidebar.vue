@@ -1,11 +1,16 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { PhStar } from '@phosphor-icons/vue'
 import { useSessions } from '../composables/useSessions'
 
-const { groupedSessions, selectedSession, togglePin, isPinned, selectSession } = useSessions()
+const { sessions, groupedSessions, selectedSession, togglePin, isPinned, selectSession } = useSessions()
 const search = ref('')
 const projectFilter = ref('')
+
+const projects = computed(() => {
+  const set = new Set(sessions.value.map(s => s.project))
+  return [...set].sort()
+})
 
 function formatDate(ts: string): string {
   const d = new Date(ts)
@@ -16,11 +21,9 @@ function formatDate(ts: string): string {
 function filterSessions(group: any) {
   if (!search.value && !projectFilter.value) return group.sessions
   const q = search.value.toLowerCase()
-  const pf = projectFilter.value.toLowerCase()
   return group.sessions.filter((s: any) => {
     const text = (s.name || s.first_user || '').toLowerCase()
-    const proj = s.project.toLowerCase()
-    return (!q || text.includes(q)) && (!pf || proj.includes(pf))
+    return (!q || text.includes(q)) && (!projectFilter.value || s.project === projectFilter.value)
   })
 }
 
@@ -44,7 +47,10 @@ function allEmpty() {
 
     <div class="sidebar-filters">
       <input v-model="search" type="text" class="si-search" placeholder="Buscar sesiones..." />
-      <input v-model="projectFilter" type="text" class="si-search" placeholder="Filtrar proyecto..." />
+      <select v-model="projectFilter" class="si-search si-select">
+        <option value="">Todos los proyectos</option>
+        <option v-for="p in projects" :key="p" :value="p">{{ p }}</option>
+      </select>
     </div>
 
     <div class="sidebar-list">
@@ -141,11 +147,29 @@ function allEmpty() {
 .si-search::placeholder {
   color: rgba(255,255,255,.25);
 }
+.si-select {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none'%3E%3Cpath d='M3 4.5l3 3 3-3' stroke='%23ffffff44' stroke-width='1.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 30px;
+}
+.si-select option {
+  background: var(--surface-dark);
+  color: var(--on-surface-dark);
+}
 .sidebar-list {
   flex: 1;
   overflow-y: auto;
   padding: 0 12px 12px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,.08) transparent;
 }
+.sidebar-list::-webkit-scrollbar { width: 5px }
+.sidebar-list::-webkit-scrollbar-track { background: transparent }
+.sidebar-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,.08); border-radius: 3px }
+.sidebar-list::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.15) }
 .session-group {
   margin-bottom: 4px;
 }
