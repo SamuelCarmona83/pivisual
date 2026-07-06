@@ -221,7 +221,30 @@ func main() {
 
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "4000"
+		// Read from .env file if it exists (simple dotenv, no dependency)
+		// Try binary dir first (Docker), then parent dir (dev), then CWD
+		dotenvPath := filepath.Join(filepath.Dir(exe), ".env")
+		if _, err := os.Stat(dotenvPath); os.IsNotExist(err) {
+			dotenvPath = filepath.Join(filepath.Dir(exe), "..", ".env")
+		}
+		if _, err := os.Stat(dotenvPath); os.IsNotExist(err) {
+			dotenvPath = ".env"
+		}
+		if data, err := os.ReadFile(dotenvPath); err == nil {
+			for _, line := range strings.Split(string(data), "\n") {
+				line = strings.TrimSpace(line)
+				if line == "" || strings.HasPrefix(line, "#") {
+					continue
+				}
+				if before, after, ok := strings.Cut(line, "="); ok {
+					os.Setenv(strings.TrimSpace(before), strings.TrimSpace(after))
+				}
+			}
+			port = os.Getenv("PORT")
+		}
+		if port == "" {
+			port = "4000"
+		}
 	}
 	fmt.Printf("Serving at http://localhost:%s\n", port)
 	log.Fatal(http.ListenAndServe("0.0.0.0:"+port, mux))

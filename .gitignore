@@ -10,7 +10,8 @@ frontend/dist/
 # macOS
 .DS_Store
 
-# IDE
+# Env
+.env
 .vscode/
 .idea/
 *.swp

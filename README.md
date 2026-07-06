@@ -28,6 +28,9 @@ python3 server.py
 ### Modern (Go + Vue)
 
 ```bash
+#all 
+cd ../frontend && npm run build && ../backend && ./pivisual-server
+
 # Build & run backend
 cd backend && go build -o pivisual-server . && ./pivisual-server
 

@@ -13,7 +13,7 @@ function copySessionId() {
 }
 
 interface RenderedMessage {
-  role: string
+  role: string  // 'user' | 'assistant' | 'system' | 'work'
   content: string | any[]
   usage?: any
   toolResults: Record<string, string>
@@ -93,7 +93,67 @@ const messages = computed<RenderedMessage[]>(() => {
       })
     }
   }
-  return result
+  // Post-process: compact consecutive assistant-only (no text) messages into work blocks
+  const compacted: RenderedMessage[] = []
+  let workSteps: RenderedMessage[] = []
+  
+  function flushWork() {
+    if (!workSteps.length) return
+    if (workSteps.length === 1 && result.length && result[result.length-1].role === 'assistant') {
+      // single work msg before final assistant: merge into a work-group with the next assistant
+      // we'll handle it below
+    }
+    // Collect tool names and thinking presence
+    let toolCount = 0
+    let hasThinking = false
+    const steps: any[] = []
+    for (const w of workSteps) {
+      const parsed = parseContentBlocks(w.content)
+      toolCount += parsed.toolCount
+      if (parsed.thinking) hasThinking = true
+      steps.push({ id: w.id, content: w.content, toolResults: w.toolResults })
+    }
+    const label = []
+    if (hasThinking) label.push('thinking')
+    if (toolCount) label.push(toolCount + ' tools')
+    compacted.push({
+      role: 'work',
+      content: steps,
+      toolResults: {},
+      systemText: label.join(', '),
+      id: workSteps[0].id,
+    })
+    workSteps = []
+  }
+
+  function parseContentBlocks(content: string | any[]) {
+    if (typeof content === 'string') return { toolCount: 0, thinking: false, isWork: false }
+    let toolCount = 0, thinking = false
+    for (const b of content) {
+      if (b.type === 'toolCall') toolCount++
+      else if (b.type === 'thinking') thinking = true
+    }
+    return { toolCount, thinking, isWork: toolCount > 0 || thinking }
+  }
+
+  for (const msg of result) {
+    if (msg.role === 'assistant') {
+      const parsed = parseContentBlocks(msg.content)
+      if (parsed.isWork) {
+        workSteps.push(msg)
+        continue
+      }
+      // Assistant has no tools/thinking: flush pending work, then add this message
+      flushWork()
+      compacted.push(msg)
+    } else {
+      flushWork()
+      compacted.push(msg)
+    }
+  }
+  flushWork()
+
+  return compacted
 })
 
 const chatBody = ref<HTMLElement | null>(null)
@@ -123,8 +183,20 @@ watch(messages, () => nextTick(() => {
     <!-- Messages -->
     <div v-else class="chat-messages" ref="chatBody">
       <template v-for="msg in messages" :key="msg.id">
+        <!-- Work block: compacted thinking + tools -->
+        <details v-if="msg.role === 'work'" class="work-block">
+          <summary>🔨 {{ msg.systemText }}</summary>
+          <ChatMessage
+            v-for="(step, si) in (msg.content as any[])"
+            :key="si"
+            role="assistant"
+            :content="step.content"
+            :tool-results="step.toolResults"
+          />
+        </details>
+
         <ChatMessage
-          v-if="msg.role !== 'system'"
+          v-else-if="msg.role !== 'system'"
           :role="msg.role"
           :content="msg.content"
           :usage="msg.usage || null"
@@ -203,4 +275,25 @@ watch(messages, () => nextTick(() => {
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
+
+.work-block {
+  max-width: 900px;
+  margin: 4px auto;
+  padding: 0 20px;
+}
+.work-block summary {
+  font-size: 12px;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 6px 12px;
+  border: 1px dashed var(--hairline);
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  user-select: none;
+  transition: border-color .15s;
+}
+.work-block summary:hover { border-color: var(--primary); color: var(--ink); }
+.work-block[open] summary { border-style: solid; border-color: var(--hairline); }
 </style>

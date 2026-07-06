@@ -4,6 +4,8 @@ import { PhWrench, PhBrain } from '@phosphor-icons/vue'
 import { marked } from 'marked'
 import type { ContentBlock, MessageUsage } from '../types'
 
+interface ToolGroup { name: string; calls: ContentBlock[] }
+
 const props = defineProps<{
   role: string
   content: string | ContentBlock[]
@@ -13,6 +15,11 @@ const props = defineProps<{
 
 function esc(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
+function toolSummary(tc: any): string {
+  const args = tc.arguments || tc.input || {}
+  return args.command || args.path || ''
 }
 
 function renderToolResult(text: string): string {
@@ -33,16 +40,26 @@ function renderToolResult(text: string): string {
 
 
 const parsedContent = computed(() => {
-  if (typeof props.content === 'string') return { text: props.content, thinking: null as string|null, toolCalls: [] as ContentBlock[] }
+  if (typeof props.content === 'string') return { text: props.content, thinking: null as string|null, toolGroups: [] as ToolGroup[] }
   const textParts: string[] = []
-  const toolCalls: ContentBlock[] = []
-  let thinking: string|null = null
+  const thinkingPieces: string[] = []
+  const rawCalls: ContentBlock[] = []
   for (const block of props.content) {
     if (block.type === 'text' && block.text) textParts.push(block.text)
-    else if (block.type === 'toolCall') toolCalls.push(block)
-    else if (block.type === 'thinking' && block.thinking) thinking = block.thinking
+    else if (block.type === 'thinking' && block.thinking) thinkingPieces.push(block.thinking)
+    else if (block.type === 'toolCall') rawCalls.push(block)
   }
-  return { text: textParts.join(''), thinking, toolCalls }
+  // Group consecutive tool calls by name
+  const toolGroups: ToolGroup[] = []
+  for (const tc of rawCalls) {
+    const last = toolGroups[toolGroups.length - 1]
+    if (last && last.name === tc.name) {
+      last.calls.push(tc)
+    } else {
+      toolGroups.push({ name: tc.name || 'tool', calls: [tc] })
+    }
+  }
+  return { text: textParts.join(''), thinking: thinkingPieces.join('\n'), toolGroups }
 })
 
 const renderedText = computed(() => {
@@ -77,13 +94,24 @@ const tkStr = computed(() => {
       </details>
 
       <!-- Tool calls -->
-      <template v-if="parsedContent.toolCalls.length">
-        <details v-for="tc in parsedContent.toolCalls" :key="tc.id" class="tool-block">
+      <template v-if="parsedContent.toolGroups.length">
+        <details v-for="(group, gi) in parsedContent.toolGroups" :key="gi" class="tool-block">
           <summary>
             <PhWrench :size="14" />
-            {{ esc(tc.name || 'tool') }}
+            <span class="tool-name">{{ group.calls.length > 1 ? group.calls.length + '× ' : '' }}{{ group.name }}</span>
+            <span class="tool-arg" v-if="group.calls.length === 1">{{ toolSummary(group.calls[0]) }}</span>
           </summary>
-          <div class="tool-result" v-html="renderToolResult(toolResults[tc.id || ''] || '') || '⏳ esperando…'" />
+          <template v-if="group.calls.length === 1">
+            <div class="tool-result" v-html="renderToolResult(toolResults[group.calls[0].id || ''] || '')" />
+          </template>
+          <template v-else>
+            <details v-for="tc in group.calls" :key="tc.id" class="tool-sub">
+              <summary class="tool-sub-summary">
+                <span class="tool-arg">{{ toolSummary(tc) || tc.id?.slice(0, 8) }}</span>
+              </summary>
+              <div class="tool-result" v-html="renderToolResult(toolResults[tc.id || ''] || '')" />
+            </details>
+          </template>
         </details>
       </template>
 
@@ -226,6 +254,21 @@ const tkStr = computed(() => {
   user-select: none;
 }
 .msg-row.user .tool-block summary { background: rgba(255,255,255,.1); color: rgba(255,255,255,.85); }
+.tool-name { font-weight: 500 }
+.tool-arg {
+  font-family: var(--font-mono); font-size: 11px; opacity: .7;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 400px;
+}
+.tool-sub { margin: 2px 0 }
+.tool-sub-summary {
+  font-size: 11px; color: var(--muted-soft); cursor: pointer;
+  padding: 3px 8px; font-family: var(--font-mono);
+  list-style: none;
+}
+.tool-sub-summary::-webkit-details-marker { display: none }
+.tool-sub-summary::before { content: '▸ '; font-size: 10px; color: var(--muted-soft) }
+.tool-sub[open] .tool-sub-summary::before { content: '▾ ' }
+.msg-row.user .tool-sub-summary { color: rgba(255,255,255,.6) }
 .tool-result {
   font-size: 13px;
   padding: 8px 10px;
