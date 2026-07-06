@@ -1,0 +1,33 @@
+[tools]
+go = "1.26"
+
+[env]
+PORT = "8765"
+
+[tasks.build]
+description = "Build Go backend"
+run = "cd backend && go build -o pivisual-server ."
+
+[tasks.test]
+description = "Run Go tests"
+run = "cd backend && go test -v -count=1 ./..."
+
+[tasks."frontend:install"]
+description = "Install frontend deps"
+run = "cd frontend && npm ci"
+
+[tasks."frontend:check"]
+description = "Type-check frontend"
+run = "cd frontend && npx vue-tsc -b --noEmit"
+
+[tasks."frontend:build"]
+description = "Build frontend"
+run = "cd frontend && npm run build"
+
+[tasks.dev]
+description = "Build + run dev server"
+run = "cd frontend && npm run build && cd ../backend && go build -o pivisual-server . && ./pivisual-server"
+
+[tasks.prod]
+description = "Production build"
+run = "cd frontend && npm run build && cd ../backend && CGO_ENABLED=0 go build -ldflags='-s -w' -o pivisual-server ."
