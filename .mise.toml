@@ -2,7 +2,7 @@
 go = "1.26"
 
 [env]
-PORT = "8765"
+PORT = "4000"
 
 [tasks.build]
 description = "Build Go backend"
