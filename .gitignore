@@ -1,0 +1,17 @@
+# Binaries
+backend/pivisual-server
+
+# Dependencies
+frontend/node_modules/
+
+# Build output
+frontend/dist/
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo

@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pi Visual — Session Viewer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..500&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet" />
+    <style>
+      @font-face {
+        font-family: 'Tiempos Headline';
+        src: url('https://pi.dev/fonts/tiempos-headline-light.woff2') format('woff2');
+        font-weight: 300;
+        font-style: normal;
+      }
+      :root {
+        --canvas: #faf9f5;
+        --primary: #cc785c;
+        --primary-active: #a9583e;
+        --primary-disabled: #e6dfd8;
+        --ink: #141413;
+        --body: #3d3d3a;
+        --body-strong: #252523;
+        --muted: #6c6a64;
+        --muted-soft: #8e8b82;
+        --hairline: #e6dfd8;
+        --surface-card: #ffffff;
+        --surface-dark: #181715;
+        --surface-dark-soft: #242220;
+        --on-primary: #ffffff;
+        --on-dark-soft: #d4d2cc;
+        --on-surface-dark: #e8e6e2;
+        --rounded-sm: 6px;
+        --rounded-md: 10px;
+        --rounded-lg: 12px;
+        --font-body: 'Inter', -apple-system, sans-serif;
+        --font-display: 'Tiempos Headline', 'Georgia', serif;
+        --font-mono: 'JetBrains Mono', 'SF Mono', monospace;
+      }
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+      body {
+        font-family: var(--font-body);
+        background: var(--canvas);
+        color: var(--body);
+        -webkit-font-smoothing: antialiased;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
