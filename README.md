@@ -22,7 +22,7 @@ A modern web-based session viewer for [Pi Coding Agent](https://github.com/earen
 
 ```bash
 python3 server.py
-# Open http://localhost:8765
+# Open http://localhost:4000
 ```
 
 ### Modern (Go + Vue)
@@ -32,7 +32,7 @@ python3 server.py
 cd backend && go build -o pivisual-server . && ./pivisual-server
 
 # Dev mode with hot reload
-cd frontend && npm run dev   # → http://localhost:5173 (proxies /api to :8765)
+cd frontend && npm run dev   # → http://localhost:5173 (proxies /api to :4000)
 ```
 
 Custom port:
@@ -45,7 +45,7 @@ Custom port:
 
 ```bash
 docker compose up --build -d
-# Open http://localhost:8765
+# Open http://localhost:4000
 ```
 
 The volume mount gives the container read-only access to your Pi session files.

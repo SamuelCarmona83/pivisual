@@ -20,5 +20,5 @@ RUN apk add --no-cache ca-certificates tzdata
 WORKDIR /app
 COPY --from=backend-builder /app/pivisual-server .
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
-EXPOSE 8765
+EXPOSE 4000
 CMD ["./pivisual-server"]

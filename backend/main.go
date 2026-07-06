@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"mime"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -205,6 +206,7 @@ func parseSessionFile(fpath, project string) *SessionSummary {
 }
 
 func main() {
+	mime.AddExtensionType(".svg", "image/svg+xml")
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 	r.Use(gin.Recovery())
@@ -252,20 +254,27 @@ func main() {
 	}
 	absDist, _ := filepath.Abs(distPath)
 	if _, err := os.Stat(absDist); err == nil {
-		r.Static("/assets", filepath.Join(absDist, "assets"))
-		r.StaticFile("/favicon.ico", filepath.Join(absDist, "favicon.ico"))
-		r.GET("/", func(c *gin.Context) {
-			c.File(filepath.Join(absDist, "index.html"))
+		// Serve specific static files
+		// Root-level static files
+		// Serve favicon directly (bypass Gin's file serving quirks)
+		faviconPath := filepath.Join(absDist, "favicon.svg")
+		r.GET("/favicon.svg", func(c *gin.Context) {
+			c.File(faviconPath)
 		})
+		r.GET("/favicon.ico", func(c *gin.Context) {
+			c.File(faviconPath)
+		})
+		// SPA: serve index.html for all other routes
 		r.NoRoute(func(c *gin.Context) {
 			c.File(filepath.Join(absDist, "index.html"))
 		})
+		r.Static("/assets", filepath.Join(absDist, "assets"))
 		log.Println("Serving frontend from", absDist)
 	} else {
 		log.Println("Frontend dist not found at", absDist, ", API-only mode")
 	}
 
-	port := "8765"
+	port := "4000"
 	if len(os.Args) > 1 {
 		port = os.Args[1]
 	}

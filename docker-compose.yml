@@ -2,7 +2,7 @@ services:
   pivisual:
     build: .
     ports:
-      - "${PORT:-8765}:${PORT:-8765}"
+      - "${PORT:-4000}:${PORT:-4000}"
     volumes:
       - ~/.pi/agent/sessions:/root/.pi/agent/sessions:ro
     restart: unless-stopped

@@ -125,6 +125,6 @@ class Handler(SimpleHTTPRequestHandler):
 
 if __name__ == "__main__":
     import sys
-    port = int(sys.argv[1]) if len(sys.argv) > 1 else 8765
+    port = int(sys.argv[1]) if len(sys.argv) > 1 else 4000
     print(f"Serving at http://localhost:{port}")
     HTTPServer(("0.0.0.0", port), Handler).serve_forever()
