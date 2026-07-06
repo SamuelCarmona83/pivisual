@@ -128,12 +128,15 @@ const messages = computed<RenderedMessage[]>(() => {
 
   function parseContentBlocks(content: string | any[]) {
     if (typeof content === 'string') return { toolCount: 0, thinking: false, isWork: false }
-    let toolCount = 0, thinking = false
+    if (!Array.isArray(content) || content.length === 0) return { toolCount: 0, thinking: false, isWork: true }
+    let toolCount = 0, thinking = false, hasText = false
     for (const b of content) {
       if (b.type === 'toolCall') toolCount++
       else if (b.type === 'thinking') thinking = true
+      else if (b.type === 'text' && (b.text || '').trim()) hasText = true
     }
-    return { toolCount, thinking, isWork: toolCount > 0 || thinking }
+    // Work = has tool calls OR empty. Text + thinking (no tools) = visible.
+    return { toolCount, thinking, isWork: toolCount > 0 || !hasText }
   }
 
   for (const msg of result) {
