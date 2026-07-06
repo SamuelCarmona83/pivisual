@@ -126,6 +126,26 @@ const messages = computed<RenderedMessage[]>(() => {
     workSteps = []
   }
 
+  /* rules: 
+
+ ┌──────────────────────┬────────┬──────────────────────────────────────┐
+ │ Content.             │ ¿Work? │ Result                                │
+ ├──────────────────────┼────────┼──────────────────────────────────────┤
+ │ {thinking, toolCall} │ ✅     │ compact                              │
+ ├──────────────────────┼────────┼──────────────────────────────────────┤
+ │ {} empty             │ ✅     │ compact                              │
+ ├──────────────────────┼────────┼──────────────────────────────────────┤
+ │ {text} solo          │ ❌     │ visible                              │
+ ├──────────────────────┼────────┼──────────────────────────────────────┤
+ │ {thinking, text}     │ ❌     │ visible (thinking colapse).          │
+ ├──────────────────────┼────────┼──────────────────────────────────────┤
+ │ {text, toolCall}     │ ✅     │ compact  (tiene tools)               │
+ └──────────────────────┴────────┴──────────────────────────────────────┘
+
+  {thinking, text} now shows as a normal message — the text is the real answer, the thinking is collapsed within the same message.
+  Only messages with tool calls or empty are compacted.
+
+  */
   function parseContentBlocks(content: string | any[]) {
     if (typeof content === 'string') return { toolCount: 0, thinking: false, isWork: false }
     if (!Array.isArray(content) || content.length === 0) return { toolCount: 0, thinking: false, isWork: true }
