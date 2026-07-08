@@ -40,7 +40,29 @@
         color: var(--body);
         -webkit-font-smoothing: antialiased;
       }
+
+      [data-theme="dark"] {
+        --canvas: #1a1917;
+        --primary: #cc785c;
+        --primary-active: #d98b70;
+        --primary-disabled: #3d302a;
+        --ink: #e8e6e2;
+        --body: #b8b5ad;
+        --body-strong: #d4d2cc;
+        --muted: #8e8b82;
+        --muted-soft: #6c6a64;
+        --hairline: #2d2b27;
+        --surface-card: #242220;
+        --surface-dark: #11100e;
+        --surface-dark-soft: #1a1917;
+        --on-primary: #ffffff;
+        --on-dark-soft: #b8b5ad;
+        --on-surface-dark: #d4d2cc;
+      }
     </style>
+    <script>
+      (function(){var t=localStorage.getItem('pi-theme');if(t==='dark')document.documentElement.setAttribute('data-theme','dark')})();
+    </script>
   </head>
   <body>
     <div id="app"></div>

@@ -199,6 +199,66 @@ func main() {
 		json.NewEncoder(w).Encode(parseSessionDir())
 	})
 
+	mux.HandleFunc("/api/search", func(w http.ResponseWriter, r *http.Request) {
+		q := strings.ToLower(r.URL.Query().Get("q"))
+		w.Header().Set("Content-Type", "application/json")
+		if q == "" { json.NewEncoder(w).Encode([]any{}); return }
+		type Match struct {
+			SessionID string `json:"session_id"`
+			File      string `json:"file"`
+			Line      int    `json:"line"`
+			Role      string `json:"role"`
+			Context   string `json:"context"`
+		}
+		var results []Match
+		entries, _ := os.ReadDir(sessionsDir)
+		for _, entry := range entries {
+			if !entry.IsDir() { continue }
+			projPath := filepath.Join(sessionsDir, entry.Name())
+			files, _ := os.ReadDir(projPath)
+			for _, f := range files {
+				if f.IsDir() || !strings.HasSuffix(f.Name(), ".jsonl") { continue }
+				fpath := filepath.Join(projPath, f.Name())
+				lines, err := readLines(fpath)
+				if err != nil { continue }
+				var header map[string]any
+				sid := ""
+				if len(lines) > 0 && json.Unmarshal([]byte(lines[0]), &header) == nil {
+					sid, _ = header["id"].(string)
+				}
+				for i, line := range lines {
+					if !strings.Contains(strings.ToLower(line), q) { continue }
+					var entry map[string]any
+					if json.Unmarshal([]byte(line), &entry) != nil { continue }
+					role := ""
+					var ctx string
+					if msg, ok := entry["message"].(map[string]any); ok {
+						role, _ = msg["role"].(string)
+						if c, ok := msg["content"].(string); ok {
+							ctx = c
+						} else if arr, ok := msg["content"].([]any); ok {
+							for _, b := range arr {
+								if m, ok := b.(map[string]any); ok && m["type"] == "text" {
+									if t, ok := m["text"].(string); ok { ctx += t + " " }
+								}
+							}
+						}
+					}
+					if len(ctx) > 200 {
+						idx := strings.Index(strings.ToLower(ctx), q)
+						start := idx - 40
+						if start < 0 { start = 0 }
+						end := idx + len(q) + 40
+						if end > len(ctx) { end = len(ctx) }
+						ctx = "..." + ctx[start:end] + "..."
+					}
+					results = append(results, Match{SessionID: sid, File: fpath, Line: i, Role: role, Context: strings.TrimSpace(ctx)})
+				}
+			}
+		}
+		json.NewEncoder(w).Encode(results)
+	})
+
 	mux.HandleFunc("/api/session", func(w http.ResponseWriter, r *http.Request) {
 		fpath := r.URL.Query().Get("file")
 		if fpath == "" || !strings.HasPrefix(fpath, sessionsDir) {

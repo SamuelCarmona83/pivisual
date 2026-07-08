@@ -6,6 +6,24 @@ import { useSessions } from '../composables/useSessions'
 const { sessions, groupedSessions, selectedSession, togglePin, isPinned, selectSession } = useSessions()
 const search = ref('')
 const projectFilter = ref('')
+const fullTextResults = ref<any[]>([])
+const searching = ref(false)
+let searchTimer: ReturnType<typeof setTimeout> | null = null
+
+function doFullTextSearch() {
+  if (!search.value.trim()) { fullTextResults.value = []; return }
+  searching.value = true
+  fetch('/api/search?q=' + encodeURIComponent(search.value))
+    .then(r => r.json())
+    .then(data => { fullTextResults.value = data || [] })
+    .catch(() => { fullTextResults.value = [] })
+    .finally(() => { searching.value = false })
+}
+function onSearchInput() {
+  if (searchTimer) clearTimeout(searchTimer)
+  fullTextResults.value = []
+}
+
 const collapsedGroups = ref(new Set<string>())
 const focusedIdx = ref(-1)
 const tooltip = ref<{ x: number; y: number; session: any } | null>(null)
@@ -139,7 +157,12 @@ onUnmounted(() => { document.removeEventListener('mousemove', onResize); documen
     </div>
 
     <div class="sidebar-filters">
-      <input v-model="search" type="text" class="si-search" placeholder="Buscar sesiones..." />
+      <div class="si-search-row">
+        <input v-model="search" type="text" class="si-search" placeholder="Buscar sesiones..." @input="onSearchInput" @keydown.enter="doFullTextSearch" />
+        <button v-if="search" class="si-ft-btn" @click="doFullTextSearch" :title="'Buscar en contenido'">
+          {{ searching ? '…' : '🔍' }}
+        </button>
+      </div>
       <select v-model="projectFilter" class="si-search si-select">
         <option value="">Todos los proyectos</option>
         <option v-for="p in projects" :key="p" :value="p">{{ p }}</option>
@@ -147,6 +170,22 @@ onUnmounted(() => { document.removeEventListener('mousemove', onResize); documen
     </div>
 
     <div class="sidebar-list">
+      <!-- Full-text results -->
+      <div v-if="fullTextResults.length" class="ft-results">
+        <div class="ft-header">{{ fullTextResults.length }} resultados en contenido</div>
+        <div
+          v-for="r in fullTextResults.slice(0, 20)"
+          :key="r.file + r.line"
+          class="ft-item"
+          @click="() => { const s = sessions.find(x => x.file === r.file); if (s) selectSession(s) }"
+        >
+          <div class="ft-role">{{ r.role }}</div>
+          <div class="ft-context" v-html="highlightText(r.context)" />
+          <div class="ft-meta">línea {{ r.line }}</div>
+        </div>
+      </div>
+
+      <!-- Session groups -->
       <template v-for="group in groupedSessions" :key="group.label">
         <div v-if="!isEmpty(group)" class="session-group">
           <div class="session-group-label" @click="toggleGroup(group.label)">
@@ -254,6 +293,23 @@ onUnmounted(() => { document.removeEventListener('mousemove', onResize); documen
   gap: 6px;
   flex-shrink: 0;
 }
+.si-search-row {
+  display: flex;
+  gap: 4px;
+}
+.si-search-row .si-search { flex: 1 }
+.si-ft-btn {
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.08);
+  color: rgba(255,255,255,.4);
+  padding: 0 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: color .15s, border-color .15s;
+  flex-shrink: 0;
+}
+.si-ft-btn:hover { color: var(--primary); border-color: var(--primary); }
 .si-search {
   width: 100%;
   background: rgba(255,255,255,.06);
@@ -367,6 +423,56 @@ onUnmounted(() => { document.removeEventListener('mousemove', onResize); documen
 .si-pin:hover { color: rgba(255,255,255,.5); }
 .si-pin.pinned { color: var(--primary); }
 .sidebar-empty { text-align: center; color: rgba(255,255,255,.25); font-size: 13px; padding: 40px 0; }
+
+/* Full-text search results */
+.ft-results {
+  border-bottom: 1px solid rgba(255,255,255,.06);
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+}
+.ft-header {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: rgba(255,255,255,.35);
+  padding: 8px 8px 4px;
+  font-weight: 500;
+}
+.ft-item {
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background .12s;
+  margin: 1px 0;
+}
+.ft-item:hover { background: rgba(255,255,255,.05) }
+.ft-role {
+  font-size: 10px;
+  color: rgba(255,255,255,.3);
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+.ft-context {
+  font-size: 12px;
+  color: rgba(255,255,255,.7);
+  line-height: 1.4;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.ft-context :deep(mark) {
+  background: rgba(204,120,92,.3);
+  color: var(--on-surface-dark);
+  border-radius: 2px;
+  padding: 0 1px;
+}
+.ft-meta {
+  font-size: 10px;
+  color: rgba(255,255,255,.2);
+  font-family: var(--font-mono);
+  margin-top: 2px;
+}
 
 /* Resize handle */
 .sidebar-resize {

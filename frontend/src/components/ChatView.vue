@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { computed, watch, nextTick, ref } from 'vue'
-import { PhChats, PhGitFork, PhList, PhFileMd, PhSelectionAll, PhCpu } from '@phosphor-icons/vue'
+import { PhChats, PhGitFork, PhList, PhSun, PhMoon, PhFileMd, PhSelectionAll, PhCpu } from '@phosphor-icons/vue'
 import { useSidebar } from '../composables/useSidebar'
+import { useTheme } from '../composables/useTheme'
 import { useSessions } from '../composables/useSessions'
 import ChatMessage from './ChatMessage.vue'
 import type { SessionEntry, ChatMessage as ChatMsg } from '../types'
 
 const { sessions, selectedSession, sessionLines, selectSession: selectSessionFromComposable } = useSessions()
 const { sidebarOpen } = useSidebar()
+const { isDark, toggle: toggleTheme } = useTheme()
 
 function copySessionId() {
   if (!selectedSession.value) return
@@ -304,6 +306,10 @@ watch(messages, () => nextTick(() => {
       <span v-if="selectedSession && !selectionMode" class="ch-id" :title="'pi --session ' + selectedSession.id" @click="copySessionId">
         pi --session {{ selectedSession.id }}
       </span>
+      <button class="ch-theme-btn" @click="toggleTheme" :title="isDark ? 'Modo claro' : 'Modo oscuro'">
+        <PhSun v-if="isDark" :size="16" />
+        <PhMoon v-else :size="16" />
+      </button>
     </div>
 
     <!-- Empty state -->
@@ -409,6 +415,20 @@ watch(messages, () => nextTick(() => {
   white-space: nowrap;
 }
 .ch-id:hover { color: var(--primary); }
+
+.ch-theme-btn {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  transition: color .15s, background .15s;
+  flex-shrink: 0;
+}
+.ch-theme-btn:hover { color: var(--ink); background: var(--hairline); }
 
 .ch-select-btn {
   background: none;
