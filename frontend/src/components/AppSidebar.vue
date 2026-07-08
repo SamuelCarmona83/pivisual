@@ -65,7 +65,10 @@ function allEmpty() {
             @click="selectSession(s)"
           >
             <div class="si-text">
-              <div class="si-title">{{ s.name || s.first_user || '(vacío)' }}</div>
+              <div class="si-title">
+                <span v-if="s.parent_session" class="si-fork" title="Fork de otra sesión">↳</span>
+                {{ s.name || s.first_user || '(vacío)' }}
+              </div>
               <div class="si-meta">
                 <span>{{ formatDate(s.timestamp) }}</span>
                 <span class="si-id-mono">{{ s.id.slice(0, 8) }}</span>
@@ -206,6 +209,11 @@ function allEmpty() {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.si-fork {
+  color: var(--primary);
+  font-size: 14px;
+  margin-right: 2px;
 }
 .si-meta {
   font-size: 11px;

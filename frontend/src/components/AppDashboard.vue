@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { PhList } from '@phosphor-icons/vue'
 import { useSessions } from '../composables/useSessions'
+import { useSidebar } from '../composables/useSidebar'
 
 const { sessions, selectSession } = useSessions()
+const { sidebarOpen } = useSidebar()
 
 function esc(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -43,6 +46,9 @@ const recentSessions = computed(() =>
 
 <template>
   <div class="dashboard">
+    <button class="dash-toggle" @click="sidebarOpen = !sidebarOpen" :title="sidebarOpen ? 'Cerrar sidebar' : 'Abrir sidebar'">
+      <PhList :size="18" />
+    </button>
     <h2 class="dash-title">Pi Visual</h2>
     <p class="dash-subtitle">Session viewer for Pi Coding Agent</p>
 
@@ -100,6 +106,34 @@ const recentSessions = computed(() =>
   justify-content: center;
   min-height: 100%;
 }
+.dash-title {
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 400;
+  letter-spacing: -0.3px;
+  color: var(--ink);
+  text-align: center;
+  margin-bottom: 4px;
+}
+
+.dash-toggle {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  transition: color .15s, background .15s;
+}
+.dash-toggle:hover { color: var(--ink); background: var(--hairline); }
+
 .dash-title {
   font-family: var(--font-display);
   font-size: 32px;

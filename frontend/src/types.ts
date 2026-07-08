@@ -11,6 +11,7 @@ export interface SessionSummary {
   assistant_msgs: number
   total_tokens: number
   total_cost: number
+  parent_session?: string
 }
 
 export interface SessionEntry {

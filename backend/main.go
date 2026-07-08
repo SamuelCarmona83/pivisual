@@ -36,6 +36,7 @@ type SessionSummary struct {
 	AssistantMsgs int     `json:"assistant_msgs"`
 	TotalTokens   int     `json:"total_tokens"`
 	TotalCost     float64 `json:"total_cost"`
+	ParentSession string  `json:"parent_session,omitempty"`
 }
 
 func readLines(path string) ([]string, error) {
@@ -142,12 +143,14 @@ func parseSessionFile(fpath, project string) *SessionSummary {
 
 	id, _ := header["id"].(string)
 	ts, _ := header["timestamp"].(string)
+	parentSession, _ := header["parentSession"].(string)
 
 	return &SessionSummary{
 		ID: id, File: fpath, Project: project, Timestamp: ts,
 		Name: sessionName, FirstUser: firstUser, Model: model, Provider: provider,
 		UserMsgs: userMsgs, AssistantMsgs: assistantMsgs,
 		TotalTokens: int(totalInput + totalOutput), TotalCost: totalCost,
+		ParentSession: parentSession,
 	}
 }
 

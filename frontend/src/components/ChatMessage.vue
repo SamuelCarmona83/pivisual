@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { PhWrench, PhBrain } from '@phosphor-icons/vue'
+import { PhWrench, PhBrain, PhUser } from '@phosphor-icons/vue'
 import { marked } from 'marked'
 import type { ContentBlock, MessageUsage } from '../types'
 
@@ -83,7 +83,9 @@ const tkStr = computed(() => {
   </div>
 
   <div v-else class="msg-row" :class="role">
-    <div v-if="role === 'user'" class="avatar">U</div>
+    <div v-if="role === 'user'" class="avatar">
+      <PhUser :size="20" />
+    </div>
     <div class="msg-body">
       <div v-if="parsedContent.text" class="bubble" v-html="renderedText" />
 
@@ -137,8 +139,8 @@ const tkStr = computed(() => {
 .avatar {
   width: 32px;
   height: 32px;
-  border-radius: 8px;
-  background: var(--primary);
+  border-radius: 32px;
+  background: var(--primary-disabled);
   color: var(--on-primary);
   display: flex;
   align-items: center;
